@@ -105,6 +105,35 @@ app.get('/api/fests/:id/programmes', (req, res) => {
     );
 });
 
+app.post('/api/fests', (req, res) => {
+  const { team_id,planned_date, } = req.body;
+
+  if(!team_id) {
+    return res.status(400).json({
+       error: 'Team_ID is required' 
+      });
+  }
+
+  pool.query(
+      'INSERT INTO fests (team_id, planned_date) VALUES (?, ?)',
+      [team_id, planned_date],
+      (err, results) => {
+          if (err) {
+              console.error('Error creating fest:', err.message);
+              return res.status(500).json({
+                  error: 'Failed to create fest'
+              });
+          }
+
+          res.status(201).json({
+              message: 'Fest created successfully',
+              festId: results.insertId
+          });
+      }
+  );
+
+});
+
 
 app.get('/', (req, res) => {
   res.send('Samajam Management API is running!');
