@@ -17,6 +17,19 @@ app.get('/api/teams', (req, res) => {
     });
 });
 
+app.get('/api/participants', (req, res) => {
+  pool.query('SELECT * FROM participants', (err, results) => {
+      if (err) {
+          console.error('Error fetching participants:', err.message);
+          return res.status(500).json({
+              error: 'Failed to fetch participants'
+          });
+      }
+
+      res.json(results);
+  });
+});
+
 app.get('/', (req, res) => {
   res.send('Samajam Management API is running!');
 });
