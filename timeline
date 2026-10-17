@@ -1,0 +1,17 @@
+# Project Timeline
+
+## Database
+- [x] Create the database
+- [x] Define tables and their attributes
+- [x] Assign foreign keys
+- [x] Add sample data to the database
+
+## Back end
+- [x] Create `server.js`
+- [x] Define the Express server in `server.js`
+- [x] Create `db.js` to connect to the database
+- [x] Use `createPool()` to reuse database connections
+- [x] Export `pool` from `db.js`
+- [x] Import `pool` into `server.js` and `test-db.js`
+- [x] Test the database connection
+
