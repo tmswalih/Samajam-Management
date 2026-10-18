@@ -105,34 +105,70 @@ app.get('/api/fests/:id/programmes', (req, res) => {
     );
 });
 
+
 app.post('/api/fests', (req, res) => {
-  const { team_id,planned_date, } = req.body;
+    const { team_id, planned_date } = req.body;
 
-  if(!team_id) {
-    return res.status(400).json({
-       error: 'Team_ID is required' 
-      });
-  }
+    // 1. Validate the requested team ID.
+    if (!team_id) {
+        return res.status(400).json({
+            error: 'Team ID is required'
+        });
+    }
 
-  pool.query(
-      'INSERT INTO fests (team_id, planned_date) VALUES (?, ?)',
-      [team_id, planned_date],
-      (err, results) => {
-          if (err) {
-              console.error('Error creating fest:', err.message);
-              return res.status(500).json({
-                  error: 'Failed to create fest'
-              });
-          }
+    // 2. Find the latest fest.
+    pool.query(
+        `SELECT fest_id, team_id, status
+         FROM fests
+         ORDER BY fest_id DESC
+         LIMIT 1`,
+        (err, results) => {
+            if (err) {
+                console.error('Error checking latest fest:', err.message);
+                return res.status(500).json({
+                    error: 'Failed to check latest fest'
+                });
+            }
 
-          res.status(201).json({
-              message: 'Fest created successfully',
-              festId: results.insertId
-          });
-      }
-  );
+            // 3. Reject if the latest fest is still pending.
+            if (results.length > 0 && results[0].status === 'Pending') {
+                return res.status(400).json({
+                    error: 'The previous fest must be completed first'
+                });
+            }
 
+            // 4. Reject if the same team is requested again.
+            if (
+                results.length > 0 &&
+                Number(team_id) === results[0].team_id
+            ) {
+                return res.status(400).json({
+                    error: 'The next fest must belong to the opposite team'
+                });
+            }
+
+            // 5. Insert only after both checks pass.
+            pool.query(
+                'INSERT INTO fests (team_id, planned_date) VALUES (?, ?)',
+                [team_id, planned_date || null],
+                (err, insertResults) => {
+                    if (err) {
+                        console.error('Error creating fest:', err.message);
+                        return res.status(500).json({
+                            error: 'Failed to create fest'
+                        });
+                    }
+
+                    res.status(201).json({
+                        message: 'Fest created successfully',
+                        fest_id: insertResults.insertId
+                    });
+                }
+            );
+        }
+    );
 });
+
 
 
 app.get('/', (req, res) => {
