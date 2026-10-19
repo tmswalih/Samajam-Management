@@ -82,6 +82,7 @@ app.get('/api/fests/:id', (req, res) => {
          res.json(results);
      });
 });
+
 app.get('/api/fests/:id/programmes', (req, res) => {
     const festId = req.params.id;
 
@@ -104,7 +105,6 @@ app.get('/api/fests/:id/programmes', (req, res) => {
         }
     );
 });
-
 
 app.post('/api/fests', (req, res) => {
     const { team_id, planned_date } = req.body;
@@ -168,8 +168,6 @@ app.post('/api/fests', (req, res) => {
         }
     );
 });
-
-
 
 app.get('/', (req, res) => {
   res.send('Samajam Management API is running!');
