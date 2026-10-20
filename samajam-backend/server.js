@@ -1,4 +1,5 @@
 
+
 const express = require('express');
 const pool = require('./db');
 
@@ -106,17 +107,28 @@ app.get('/api/fests/:id/programmes', (req, res) => {
     );
 });
 
-app.post('/api/fests', (req, res) => {
+app.post('/api/fests', async (req, res) => {
     const { team_id, planned_date } = req.body;
 
-    // 1. Validate the requested team ID.
+    
     if (!team_id) {
         return res.status(400).json({
             error: 'Team ID is required'
         });
     }
 
-    // 2. Find the latest fest.
+    const [teamRows] = await pool.promise().query(
+  'SELECT * FROM teams WHERE team_id = ?',
+  [team_id]
+);
+
+    if( teamRows.length === 0) {
+        return res.status(400).json({
+            message: 'Invalid team ID'
+        });
+    }
+ 
+    
     pool.query(
         `SELECT fest_id, team_id, status
          FROM fests
@@ -130,14 +142,14 @@ app.post('/api/fests', (req, res) => {
                 });
             }
 
-            // 3. Reject if the latest fest is still pending.
+           
             if (results.length > 0 && results[0].status === 'Pending') {
                 return res.status(400).json({
                     error: 'The previous fest must be completed first'
                 });
             }
 
-            // 4. Reject if the same team is requested again.
+            
             if (
                 results.length > 0 &&
                 Number(team_id) === results[0].team_id
@@ -147,7 +159,7 @@ app.post('/api/fests', (req, res) => {
                 });
             }
 
-            // 5. Insert only after both checks pass.
+           
             pool.query(
                 'INSERT INTO fests (team_id, planned_date) VALUES (?, ?)',
                 [team_id, planned_date || null],

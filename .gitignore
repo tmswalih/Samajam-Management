@@ -17,3 +17,5 @@ npm-debug.log*
 
 # Operating system files
 .DS_Store
+
+.agents/rules/samajam-learning-tutor.md
