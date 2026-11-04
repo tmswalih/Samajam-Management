@@ -7,5 +7,18 @@ pool.getConnection((err, connection) => {
   }
 
   console.log('Connected to MySQL successfully!');
-  connection.release(); 
+  console.log('Database:', connection.config.database);
+
+  connection.query(
+    'SELECT team_id, team_name FROM teams',
+    (err, results) => {
+      if (err) {
+        console.error('Error fetching teams:', err.message);
+      } else {
+        console.log('Teams:', results);
+      }
+
+      connection.release();
+    }
+  );
 });

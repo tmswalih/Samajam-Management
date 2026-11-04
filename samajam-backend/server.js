@@ -1,5 +1,11 @@
 
 
+
+
+
+
+
+
 const express = require('express');
 const pool = require('./db');
 
@@ -121,7 +127,6 @@ app.post('/api/fests', async (req, res) => {
   'SELECT * FROM teams WHERE team_id = ?',
   [team_id]
 );
-
     if( teamRows.length === 0) {
         return res.status(400).json({
             message: 'Invalid team ID'
