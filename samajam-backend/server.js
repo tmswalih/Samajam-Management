@@ -114,6 +114,79 @@ app.get('/api/fests/:id/programmes', (req, res) => {
     );
 });
 
+app.post('/api/fests/:id/programmes', async (req, res) => {
+    const festId = req.params.id;
+    const { programme_id } = req.body;
+
+    
+
+    if (
+    !Number.isInteger(Number(festId)) ||
+    Number(festId) <= 0 ||
+    !Number.isInteger(Number(programme_id)) ||
+    Number(programme_id) <= 0
+) {
+    return res.status(400).json({
+        error: 'Invalid fest or programme ID'
+    });
+}
+
+try {
+const [festRows] = await pool.promise().query(
+    'SELECT fest_id FROM fests WHERE fest_id = ?',
+    [festId]
+);
+
+if (festRows.length === 0) {
+    return res.status(404).json({
+        error: 'Fest not found'
+    });
+}
+
+const [programmeRows] = await pool.promise().query(
+    'SELECT programme_id, is_active FROM programmes WHERE programme_id = ?',
+    [programme_id]
+);
+
+if (programmeRows.length === 0) {
+    return res.status(404).json({
+        error: 'Programme not found'
+    });
+}
+
+if (!programmeRows[0].is_active) {
+    return res.status(400).json({
+        error: 'Programme is not active'
+    });
+}
+
+const [insertResults] = await pool.promise().query(
+    'INSERT INTO fest_programmes (fest_id, programme_id) VALUES (?, ?)',
+    [festId, programme_id]
+);
+
+return res.status(201).json({
+    message: 'Programme added to fest successfully',
+    fest_programme_id: insertResults.insertId });
+
+} catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') {
+        return res.status(409).json({
+            error: 'Programme is already added to this fest'
+        });
+    } else {
+        console.error('Error adding programme to fest:', err.message);
+        return res.status(500).json({
+            error: 'Failed to add programme to fest'
+        });
+    }
+
+}
+});
+
+
+
+
 app.post('/api/fests', createFestHandler(pool));
 
 app.get('/', (req, res) => {
