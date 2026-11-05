@@ -94,7 +94,28 @@ app.get('/api/fests/:id', (req, res) => {
 app.get('/api/fests/:id/programmes', (req, res) => {
     const festId = req.params.id;
 
+    if (Number(festId) <= 0 || !Number.isInteger(Number(festId))) {
+                return res.status(400).json({
+                    error: 'Invalid fest ID'
+                });
+    }
     pool.query(
+        'SELECT fest_id FROM fests WHERE fest_id = ?',
+        [festId],
+        (err, festResults) => {
+            if (err) {
+                console.error('Error fetching fest:', err.message);
+                return res.status(500).json({
+                    error: 'Failed to fetch fest'
+                });
+            }
+
+            if (festResults.length === 0) {
+                return res.status(404).json({
+                    error: 'Fest not found'
+                });
+            }
+            pool.query(
         `SELECT p.*
          FROM fest_programmes fp
          JOIN programmes p
@@ -107,19 +128,13 @@ app.get('/api/fests/:id/programmes', (req, res) => {
                 return res.status(500).json({
                     error: 'Failed to fetch fest programmes'
                 });
-            }
-
-            res.json(results);
-        }
-    );
+            } res.json(results);
+        });    
+}); 
 });
-
 app.post('/api/fests/:id/programmes', async (req, res) => {
     const festId = req.params.id;
     const { programme_id } = req.body;
-
-    
-
     if (
     !Number.isInteger(Number(festId)) ||
     Number(festId) <= 0 ||
@@ -133,7 +148,7 @@ app.post('/api/fests/:id/programmes', async (req, res) => {
 
 try {
 const [festRows] = await pool.promise().query(
-    'SELECT fest_id FROM fests WHERE fest_id = ?',
+    'SELECT fest_id, status FROM fests WHERE fest_id = ?',
     [festId]
 );
 
@@ -143,6 +158,11 @@ if (festRows.length === 0) {
     });
 }
 
+if (festRows[0].status !== 'Pending') {
+    return res.status(400).json({
+        error: 'Cannot add programme to a completed fest'
+    });
+}   
 const [programmeRows] = await pool.promise().query(
     'SELECT programme_id, is_active FROM programmes WHERE programme_id = ?',
     [programme_id]
@@ -182,6 +202,72 @@ return res.status(201).json({
     }
 
 }
+});
+
+app.delete('/api/fests/:id/programmes/:programmeId', async (req, res) => {
+    const festId = req.params.id;
+    const programmeId = req.params.programmeId;
+    
+    if (!Number.isInteger(Number(festId)) ||
+        Number(festId) <= 0 ||
+        !Number.isInteger(Number(programmeId)) ||
+        Number(programmeId) <= 0
+    ) {
+        return res.status(400).json({
+            error: 'Invalid fest or programme ID'
+        });
+    }
+
+    try {
+        const [festRows] = await pool.promise().query(
+            'SELECT fest_id, status FROM fests WHERE fest_id = ?',
+            [festId]
+        );
+
+        if (festRows.length === 0) {
+            return res.status(404).json({
+                error: 'Fest not found'
+            });
+        }
+
+        if (festRows[0].status !== 'Pending') {
+            return res.status(400).json({
+                error: 'Cannot remove programme from a completed fest'
+            });
+        }
+
+        const [programmeRows] = await pool.promise().query(
+            'SELECT programme_id FROM programmes WHERE programme_id = ?',
+            [programmeId]
+        );
+
+        if (programmeRows.length === 0) {
+            return res.status(404).json({
+                error: 'Programme not found'
+            });
+        }
+
+        const [deleteResults] = await pool.promise().query(
+            'DELETE FROM fest_programmes WHERE fest_id = ? AND programme_id = ?',
+            [festId, programmeId]
+        );
+
+        if (deleteResults.affectedRows === 0) {
+            return res.status(404).json({
+                error: 'Programme not associated with this fest'
+            });
+        }
+
+        return res.status(200).json({
+            message: 'Programme removed from fest successfully'
+        });
+
+    } catch (err) {
+        console.error('Error removing programme from fest:', err.message);
+        return res.status(500).json({
+            error: 'Failed to remove programme from fest'
+        });
+    }
 });
 
 
