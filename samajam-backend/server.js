@@ -275,6 +275,180 @@ app.delete('/api/fests/:id/programmes/:programmeId', async (req, res) => {
 
 app.post('/api/fests', createFestHandler(pool));
 
+app.post('/api/fests/:id/assignments', async (req, res) => {
+    const festId = req.params.id;
+
+const {
+    fest_programme_id,
+    assigned_participant_id,
+    substitute_participant_id,
+    category_override,
+    notes
+} = req.body;
+
+if (!Number.isInteger(Number(festId)) || 
+    Number(festId) <= 0 ||
+    !Number.isInteger(Number(fest_programme_id)) || 
+    Number(fest_programme_id) <= 0 ||
+    !Number.isInteger(Number(assigned_participant_id)) || 
+    Number(assigned_participant_id) <= 0 ||
+    (
+    substitute_participant_id !== undefined &&
+    substitute_participant_id !== null &&
+    (
+        !Number.isInteger(Number(substitute_participant_id)) ||
+        Number(substitute_participant_id) <= 0
+    )
+) ||
+(notes !== undefined && notes !== null && (typeof notes !== 'string' || notes.length > 255))
+) {
+    return res.status(400).json({
+        error: 'Invalid fest or assignment details'
+    });
+}
+
+try {
+    const [festProgramme] = await pool.promise().query(
+        `SELECT fest_programme_id
+         FROM fest_programmes
+         WHERE fest_programme_id = ? AND fest_id = ?`,
+        [fest_programme_id, festId]
+    );
+
+    if (festProgramme.length === 0) {
+        return res.status(404).json({
+            error: 'Fest programme not found'
+        });
+    }
+
+const [participant] = await pool.promise().query(
+    `SELECT participant_id, is_active, category
+     FROM participants
+     WHERE participant_id = ?`,
+    [assigned_participant_id]
+);
+
+if (participant.length === 0) {
+    return res.status(404).json({
+        error: 'Participant not found'
+    });
+}
+
+if (!participant[0].is_active) {
+    return res.status(400).json({
+        error: 'Participant is not active'
+    });
+}
+
+const [assigned] = await pool.promise().query(
+    `SELECT assignment_id
+     FROM assignments
+     WHERE fest_programme_id = ?`,
+    [fest_programme_id]
+);
+
+if (assigned.length > 0) {
+    return res.status(409).json({
+        error: 'This fest programme is already assigned to a participant'
+    });
+}
+const [programmeCategory] = await pool.promise().query(
+    `SELECT p.allowed_category, p.is_active
+     FROM programmes p
+     JOIN fest_programmes fp ON p.programme_id = fp.programme_id
+     WHERE fp.fest_programme_id = ?`,
+    [fest_programme_id]
+);
+if (programmeCategory.length === 0) {
+    return res.status(404).json({
+        error: 'Programme not found for this fest programme'
+    });
+}
+if(typeof category_override !== 'boolean') {
+    return res.status(400).json({
+        error: 'Only boolean values are allowed for category_override'
+    });
+}
+if(!programmeCategory[0].is_active) {
+    return res.status(400).json({
+        error: 'Programme is not active'
+    });
+}
+
+
+if (programmeCategory[0].allowed_category !== 'Both' &&
+    !category_override &&
+    programmeCategory[0].allowed_category !== participant[0].category
+) {
+    return res.status(400).json({
+        error: 'Participant category does not match programme category'
+    });
+}
+
+if(substitute_participant_id !== undefined &&
+    substitute_participant_id !== null &&
+    Number(substitute_participant_id) === Number(assigned_participant_id)) {
+    return res.status(400).json({
+        error: 'Substitute participant cannot be the same as the assigned participant'
+    });
+}
+
+if (substitute_participant_id !== undefined &&
+     substitute_participant_id !== null) {
+        const [substituteParticipant] = await pool.promise().query(
+    `SELECT participant_id, is_active, category
+     FROM participants
+     WHERE participant_id = ?`,
+    [substitute_participant_id]
+);
+    if (substituteParticipant.length === 0) {
+        return res.status(404).json({
+            error: 'Substitute participant not found'
+        });
+    }
+
+    if (!substituteParticipant[0].is_active) {
+        return res.status(400).json({
+            error: 'Substitute participant is not active'
+        });
+    }
+
+    if (programmeCategory[0].allowed_category !== 'Both' &&
+        !category_override &&
+        programmeCategory[0].allowed_category !== substituteParticipant[0].category
+    ) {
+        return res.status(400).json({
+            error: 'Substitute participant category does not match programme category'
+        });
+    }
+}
+
+const [result] = await pool.promise().query(
+    `INSERT INTO assignments (
+    fest_programme_id,
+    assigned_participant_id,
+    substitute_participant_id,
+    category_override,
+    notes
+)
+VALUES (?, ?, ?, ?, ?)`,
+    [fest_programme_id, assigned_participant_id, substitute_participant_id ?? null, category_override, notes ?? null]
+);
+return res.status(201).json({
+    message: 'Participant assigned to fest programme successfully',
+    assignment_id: result.insertId
+
+});
+} catch (err) {
+    console.error('Error inserting assignment:', err.message);
+    return res.status(500).json({
+        error: 'Failed to assign participant to fest programme'
+    });
+}
+});
+
+
+
 app.get('/', (req, res) => {
   res.send('Samajam Management API is running!');
 });
