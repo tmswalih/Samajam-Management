@@ -270,9 +270,6 @@ app.delete('/api/fests/:id/programmes/:programmeId', async (req, res) => {
     }
 });
 
-
-
-
 app.post('/api/fests', createFestHandler(pool));
 
 app.post('/api/fests/:id/assignments', async (req, res) => {
@@ -288,16 +285,21 @@ const {
 
 if (!Number.isInteger(Number(festId)) || 
     Number(festId) <= 0 ||
-    !Number.isInteger(Number(fest_programme_id)) || 
-    Number(fest_programme_id) <= 0 ||
-    !Number.isInteger(Number(assigned_participant_id)) || 
-    Number(assigned_participant_id) <= 0 ||
+    (typeof fest_programme_id !== 'number' ||
+        !Number.isInteger(fest_programme_id) ||
+        fest_programme_id <= 0
+    ) ||
+    (typeof assigned_participant_id !== 'number' ||
+        !Number.isInteger(assigned_participant_id) ||
+        assigned_participant_id <= 0
+    )  ||
     (
     substitute_participant_id !== undefined &&
     substitute_participant_id !== null &&
     (
-        !Number.isInteger(Number(substitute_participant_id)) ||
-        Number(substitute_participant_id) <= 0
+typeof substitute_participant_id !== 'number' ||
+        !Number.isInteger(substitute_participant_id) ||
+        substitute_participant_id <= 0
     )
 ) ||
 (notes !== undefined && notes !== null && (typeof notes !== 'string' || notes.length > 255))
