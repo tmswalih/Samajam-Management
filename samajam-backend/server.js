@@ -1,11 +1,3 @@
-
-
-
-
-
-
-
-
 const express = require('express');
 const pool = require('./db');
 const createFestHandler = require('./fest-handler');
@@ -13,7 +5,6 @@ const createParticipationHandler = require('./handlers/participation-handler');
 
 const app = express();
 app.use(express.json());
-
 
 app.get('/api/teams', (req, res) => {
     pool.query('SELECT * FROM teams', (err, results) => {
@@ -132,8 +123,9 @@ app.get('/api/fests/:id/programmes', (req, res) => {
                 });
             } res.json(results);
         });    
-}); 
+    }); 
 });
+
 app.post('/api/fests/:id/programmes', async (req, res) => {
     const festId = req.params.id;
     const { programme_id } = req.body;
@@ -452,8 +444,6 @@ return res.status(201).json({
 });
 
 app.post('/api/fests/:id/participation-records', createParticipationHandler(pool));
-
-
 
 app.get('/', (req, res) => {
   res.send('Samajam Management API is running!');
