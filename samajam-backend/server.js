@@ -9,9 +9,11 @@
 const express = require('express');
 const pool = require('./db');
 const createFestHandler = require('./fest-handler');
+const createParticipationHandler = require('./handlers/participation-handler');
 
 const app = express();
 app.use(express.json());
+
 
 app.get('/api/teams', (req, res) => {
     pool.query('SELECT * FROM teams', (err, results) => {
@@ -448,6 +450,8 @@ return res.status(201).json({
     });
 }
 });
+
+app.post('/api/fests/:id/participation-records', createParticipationHandler(pool));
 
 
 
