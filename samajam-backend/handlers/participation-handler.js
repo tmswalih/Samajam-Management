@@ -98,8 +98,98 @@ function createParticipationHandler(pool) {
         error: 'Internal server error'
     });
 }
-
 };
 }
 
-module.exports = createParticipationHandler;
+function updateParticipationHandler(pool) {
+    return async (req, res) => {
+        const festId = Number(req.params.id);
+        const recordId = Number(req.params.recordId);
+        const { actual_participant_id, participated } = req.body;
+
+        if (!Number.isInteger(festId) || festId <= 0) {
+            return res.status(400).json({
+                error: 'Invalid fest ID'
+            });
+        }
+        if (!Number.isInteger(recordId) || recordId <= 0) {
+            return res.status(400).json({
+                error: 'Invalid record ID'
+            });
+        }
+        if (!Number.isInteger(actual_participant_id) || actual_participant_id <= 0) {
+            return res.status(400).json({
+                error: 'Invalid actual participant ID'
+            });
+        }
+        if (participated !== true && participated !== false) {
+            return res.status(400).json({
+                error: 'Participated must be a boolean value'
+            });
+        }
+        
+        try {
+            const [festRows] = await pool.promise().query(
+                'SELECT * FROM fests WHERE fest_id = ?',
+                [festId]
+            );
+            if (festRows.length === 0) {
+                return res.status(404).json({
+                    message: 'Fest not found'
+                });
+            }
+
+            const [recordRows] = await pool.promise().query(
+                `SELECT *
+                FROM participation_records p
+                JOIN assignments a
+                    ON p.assignment_id = a.assignment_id
+                JOIN fest_programmes fp
+                    ON a.fest_programme_id = fp.fest_programme_id
+                WHERE p.record_id = ?
+                AND fp.fest_id = ?`,
+                [recordId, festId]
+            );
+            if (recordRows.length === 0) {
+                return res.status(404).json({
+                    message: 'Participation record not found'
+                });
+            }
+
+            const [participantRows] = await pool.promise().query(
+                'SELECT * FROM participants WHERE participant_id = ?',
+                [actual_participant_id]
+            );
+            if (participantRows.length === 0) {
+                return res.status(404).json({
+                    message: 'Participant not found'
+                });
+            }
+            if (participantRows[0].is_active !== 1) {
+                return res.status(400).json({
+                    error: 'Participant is inactive'
+                });
+            }
+            const [updateResults] = await pool.promise().query(
+                'UPDATE participation_records SET actual_participant_id = ?, participated = ? WHERE record_id = ?',
+                [actual_participant_id, participated, recordId]
+            );
+
+            return res.status(200).json({
+                message: 'Participation updated successfully',
+                affectedRows: updateResults.affectedRows
+            });
+        } catch (error) {
+            console.error('Error updating participation:', error);
+            return res.status(500).json({
+                error: 'Internal server error'
+            });
+        }
+    }
+
+}
+
+module.exports = {
+    createParticipationHandler,
+    updateParticipationHandler
+};

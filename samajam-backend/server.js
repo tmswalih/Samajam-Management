@@ -1,7 +1,10 @@
 const express = require('express');
 const pool = require('./db');
 const createFestHandler = require('./fest-handler');
-const createParticipationHandler = require('./handlers/participation-handler');
+const {
+    createParticipationHandler,
+    updateParticipationHandler
+} = require('./handlers/participation-handler');
 
 const app = express();
 app.use(express.json());
@@ -444,6 +447,8 @@ return res.status(201).json({
 });
 
 app.post('/api/fests/:id/participation-records', createParticipationHandler(pool));
+
+app.put('/api/fests/:id/participation-records/:recordId', updateParticipationHandler(pool));
 
 app.get('/', (req, res) => {
   res.send('Samajam Management API is running!');
